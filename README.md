@@ -513,7 +513,8 @@ fillvalue
     ## $value
     ## [1] 9.96921e+36
 
-# The fill value in this particular case is `9969209968386869046778552952102584320`.
+The fill value in this particular case is
+`9969209968386869046778552952102584320`.
 
 The best thing to do is probably first, might just be for housekeeping,
 replace any fill values with ’NA’s, as would be standard practice in R.
@@ -883,4 +884,15 @@ plot(tmp_avg_diff)
 ``` r
 tmp_avg_diff_df <- as(tmp_avg_diff, 
                     "SpatialPolygonsDataFrame")
+```
+
+We can also export the data as a tiff, if we want to style up the end in
+software like QGIS.
+
+``` r
+# export as GeoTIFF
+writeRaster(tmp_avg_diff, 
+            filename="tmp_avg_diff.tiff", 
+            format = "GTiff",
+            overwrite = TRUE)
 ```
