@@ -349,6 +349,92 @@ colnames(tmp_dataframe) <- tmp_cols
 
 ```
 
-NEXT STEPS
+### Calculations with the raster package
 
+We can also work with our dataset using functions from the `raster` package. If we load the data in using the `brick` function of the raster package, the netCDF file is loaded in as a [RasterBrick object](https://rspatial.org/raster/pkg/2-classes.html#rasterstack-and-rasterbrick), a type of object that can hold several layers of data. Because our data, as we have seen earlier, has two variables, we can explicitly select the `tmp` variable, otherwise it will select one for us and provide a message with the variable the function has chosen. 
+
+``` {r brick, warning = FALSE, message = FALSE} 
+tmp_monthly <- brick('~/Dropbox (BBC)/Visual Journalism/Data/2022/working_with_climate_data_nicar22/data/cru_ts4.05.2011.2020.tmp.dat.nc', varname = "tmp")
+
+print(tmp_monthly)
+```
+If we have a quick try and visualise our data, we can see that we get a plot for each month. To see just one month, we can select the index to select that layer and we know there are 120 layers, so we can select any layer from 1 to 120. 
+
+``` {r brick_plot, warning = FALSE, message = FALSE} 
+
+plot(tmp_monthly)
+
+plot(tmp_monthly[[1]])
+
+plot(tmp_monthly[[120]])
+
+```
+
+The [stackApply](https://search.r-project.org/CRAN/refmans/raster/html/stackApply.html) function is useful to apply a function on subsets of RasterBricks. It comes in handy here as it allows us to run calculations on the data to produce a single layer each year, rather than each month. We first create a vector that can act as an index for each year and then using the years as an index in the stackApply function, can run a mean function on each of the years. 
+
+And you can see when we plot the annual dataset, that it prints out just 10 plots, one for each year, instead of the 120, one for each month
+
+``` {r stackapply, warning = FALSE, message = FALSE} 
+# creates vector as index for calculating yearly averages
+
+years <- rep(1:10, each = 12)
+
+# calculates average for each year, resulting in 10 layers one for each year from 2011 to 2020
+tmp_annual <- stackApply(tmp_monthly, indices = years, fun = mean)
+
+
+plot(tmp_annual)
+
+
+```
+
+We can at this stage convert the data to a spatial data frame for further analysis and plotting, or to save out as a shapefile or geojson. 
+
+When we print out the annual df file, we can see it shows us that we have 10 variables, one for each year, which are named by year, rather than index_1, index_2 etc. 
+
+``` {r spatial_df, warning = FALSE, message = FALSE} 
+#turn into spatial polygons data frame
+tmp_annual_df <- as(tmp_annual,
+                  "SpatialPolygonsDataFrame")
+
+# turn names of variables in the data frame as years
+names(tmp_annual_df@data) <- c(as.character(2011:2020))
+
+print(tmp_annual_df)
+
+``` 
+
+We can also split the data by subsetting it, creating two different files for the years 2011 to 2015 and 2016 to 2020 and calculating the total average for each. 
+
+
+``` {r averages_calc, warning = FALSE, message = FALSE} 
+# subsets years 2011 to 2015, the first 5 years in our annual data
+tmp_annual_2011_2015 <- subset(tmp_annual, 1:5)
+
+# calculates the mean for the five years we have subset
+tmp_2011_2015_avg <- calc(tmp_annual_2011_2015,
+                        mean,
+                        na.rm = TRUE) 
+
+# subsets years 2016 to 2020, years 6 to 10 in our annual data
+tmp_annual_2016_2020 <- subset(tmp_annual, 6:10)
+
+# calculates the mean for the five years we have subset
+tmp_2016_2020_avg <- calc(tmp_annual_2016_2020,
+                        mean,
+                        na.rm = TRUE) 
+``` 
+
+So now, we can compare the average for the first five years of our data to the last five years and figure out the difference in mean temperature between the two, an example of the type of calculations we can get into with our data formatted in this way. 
+
+We can see when plotting the new map, or printing out the results, that the values show the difference between the two averages, as opposed to the mean temperature averages.
+
+``` {r calculate_diff, warning = FALSE, message = FALSE}
+# calculates the difference between the two averages 
+tmp_avg_diff <- tmp_2016_2020_avg - tmp_2011_2015_avg
+print(tmp_avg_diff)
+plot(tmp_avg_diff)
+
+tmp_avg_diff_df <- as(tmp_avg_diff, 
+                    "SpatialPolygonsDataFrame")
 

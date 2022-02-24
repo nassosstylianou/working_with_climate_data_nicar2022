@@ -699,4 +699,188 @@ tmp_cols <- c(lon_lat_cols,
 colnames(tmp_dataframe) <- tmp_cols
 ```
 
-NEXT STEPS
+### Calculations with the raster package
+
+We can also work with our dataset using functions from the `raster`
+package. If we load the data in using the `brick` function of the raster
+package, the netCDF file is loaded in as a [RasterBrick
+object](https://rspatial.org/raster/pkg/2-classes.html#rasterstack-and-rasterbrick),
+a type of object that can hold several layers of data. Because our data,
+as we have seen earlier, has two variables, we can explicitly select the
+`tmp` variable, otherwise it will select one for us and provide a
+message with the variable the function has chosen.
+
+``` r
+tmp_monthly <- brick('~/Dropbox (BBC)/Visual Journalism/Data/2022/working_with_climate_data_nicar22/data/cru_ts4.05.2011.2020.tmp.dat.nc', varname = "tmp")
+
+print(tmp_monthly)
+```
+
+    ## File /Users/stylin02/Dropbox (BBC)/Visual Journalism/Data/2022/working_with_climate_data_nicar22/data/cru_ts4.05.2011.2020.tmp.dat.nc (NC_FORMAT_CLASSIC):
+    ## 
+    ##      2 variables (excluding dimension variables):
+    ##         float tmp[lon,lat,time]   
+    ##             long_name: near-surface temperature
+    ##             units: degrees Celsius
+    ##             correlation_decay_distance: 1200
+    ##             _FillValue: 9.96920996838687e+36
+    ##             missing_value: 9.96920996838687e+36
+    ##         int stn[lon,lat,time]   
+    ##             description: number of stations contributing to each datum
+    ##             _FillValue: -999
+    ##             missing_value: -999
+    ## 
+    ##      3 dimensions:
+    ##         lon  Size:720
+    ##             long_name: longitude
+    ##             units: degrees_east
+    ##         lat  Size:360
+    ##             long_name: latitude
+    ##             units: degrees_north
+    ##         time  Size:120   *** is unlimited ***
+    ##             long_name: time
+    ##             units: days since 1900-1-1
+    ##             calendar: gregorian
+    ## 
+    ##     8 global attributes:
+    ##         Conventions: CF-1.4
+    ##         title: CRU TS4.05 Mean Temperature
+    ##         institution: Data held at British Atmospheric Data Centre, RAL, UK.
+    ##         source: Run ID = 2103051243. Data generated from:tmp.2103041709.dtb
+    ##         history: Fri  5 Mar 13:25:53 GMT 2021 : User harry : Program makegridsauto.for called by update.for
+    ##         references: Information on the data is available at http://badc.nerc.ac.uk/data/cru/
+    ##         comment: Access to these data is available to any registered CEDA user.
+    ##         contact: support@ceda.ac.uk
+
+If we have a quick try and visualise our data, we can see that we get a
+plot for each month. To see just one month, we can select the index to
+select that layer and we know there are 120 layers, so we can select any
+layer from 1 to 120.
+
+``` r
+plot(tmp_monthly)
+```
+
+![](tutorial_files/figure-gfm/brick_plot-1.png)<!-- -->
+
+``` r
+plot(tmp_monthly[[1]])
+```
+
+![](tutorial_files/figure-gfm/brick_plot-2.png)<!-- -->
+
+``` r
+plot(tmp_monthly[[120]])
+```
+
+![](tutorial_files/figure-gfm/brick_plot-3.png)<!-- -->
+
+The
+[stackApply](https://search.r-project.org/CRAN/refmans/raster/html/stackApply.html)
+function is useful to apply a function on subsets of RasterBricks. It
+comes in handy here as it allows us to run calculations on the data to
+produce a single layer each year, rather than each month. We first
+create a vector that can act as an index for each year and then using
+the years as an index in the stackApply function, can run a mean
+function on each of the years.
+
+And you can see when we plot the annual dataset, that it prints out just
+10 plots, one for each year, instead of the 120, one for each month
+
+``` r
+# creates vector as index for calculating yearly averages
+
+years <- rep(1:10, each = 12)
+
+# calculates average for each year, resulting in 10 layers one for each year from 2011 to 2020
+tmp_annual <- stackApply(tmp_monthly, indices = years, fun = mean)
+
+
+plot(tmp_annual)
+```
+
+![](tutorial_files/figure-gfm/stackapply-1.png)<!-- -->
+
+We can at this stage convert the data to a spatial data frame for
+further analysis and plotting, or to save out as a shapefile or geojson.
+
+When we print out the annual df file, we can see it shows us that we
+have 10 variables, one for each year, which are named by year, rather
+than index\_1, index\_2 etc.
+
+``` r
+#turn into spatial polygons data frame
+tmp_annual_df <- as(tmp_annual,
+                  "SpatialPolygonsDataFrame")
+
+# turn names of variables in the data frame as years
+names(tmp_annual_df@data) <- c(as.character(2011:2020))
+
+print(tmp_annual_df)
+```
+
+    ## class       : SpatialPolygonsDataFrame 
+    ## features    : 67420 
+    ## extent      : -180, 180, -56, 84  (xmin, xmax, ymin, ymax)
+    ## crs         : +proj=longlat +datum=WGS84 +no_defs 
+    ## variables   : 10
+    ## names       :              2011,              2012,             2013,              2014,              2015,              2016,             2017,              2018,              2019,              2020 
+    ## min values  : -26.2833341757456, -26.5166671276093, -27.191666841507, -26.8666671117147, -26.8749999205271, -25.8666671911875, -26.800000667572, -27.6083339850108, -27.4000004728635, -27.4000004728635 
+    ## max values  :  30.9833343823751,  31.0583338737488, 31.2333340644836,   30.841667175293,  31.4166669845581,  31.4000005722046, 31.2333339055379,  31.0500003496806,  30.9083340962728,  31.0250005722046
+
+We can also split the data by subsetting it, creating two different
+files for the years 2011 to 2015 and 2016 to 2020 and calculating the
+total average for each.
+
+``` r
+# subsets years 2011 to 2015, the first 5 years in our annual data
+tmp_annual_2011_2015 <- subset(tmp_annual, 1:5)
+
+# calculates the mean for the five years we have subset
+tmp_2011_2015_avg <- calc(tmp_annual_2011_2015,
+                        mean,
+                        na.rm = TRUE) 
+
+# subsets years 2016 to 2020, years 6 to 10 in our annual data
+tmp_annual_2016_2020 <- subset(tmp_annual, 6:10)
+
+# calculates the mean for the five years we have subset
+tmp_2016_2020_avg <- calc(tmp_annual_2016_2020,
+                        mean,
+                        na.rm = TRUE) 
+```
+
+So now, we can compare the average for the first five years of our data
+to the last five years and figure out the difference in mean temperature
+between the two, an example of the type of calculations we can get into
+with our data formatted in this way.
+
+We can see when plotting the new map, or printing out the results, that
+the values show the difference between the two averages, as opposed to
+the mean temperature averages.
+
+``` r
+# calculates the difference between the two averages 
+tmp_avg_diff <- tmp_2016_2020_avg - tmp_2011_2015_avg
+print(tmp_avg_diff)
+```
+
+    ## class      : RasterLayer 
+    ## dimensions : 360, 720, 259200  (nrow, ncol, ncell)
+    ## resolution : 0.5, 0.5  (x, y)
+    ## extent     : -180, 180, -90, 90  (xmin, xmax, ymin, ymax)
+    ## crs        : +proj=longlat +datum=WGS84 +no_defs 
+    ## source     : memory
+    ## names      : layer 
+    ## values     : -0.8883338, 2.035  (min, max)
+
+``` r
+plot(tmp_avg_diff)
+```
+
+![](tutorial_files/figure-gfm/calculate_diff-1.png)<!-- -->
+
+``` r
+tmp_avg_diff_df <- as(tmp_avg_diff, 
+                    "SpatialPolygonsDataFrame")
+```
