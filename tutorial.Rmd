@@ -87,7 +87,7 @@ There are a number of different packages in R that allow you to load in and work
 
 ### Load the packages you need
 
-```{r load_libs, waring = FALSE, message = FALSE}
+```{r load_libs, warning = FALSE, message = FALSE}
 library(ncdf4) # package for netcdf manipulation
 library(raster) # package for raster manipulation
 library(RNetCDF) # package for working with netcdfs
@@ -131,7 +131,7 @@ So, what we will be doing next is to look at how to extract and work with each o
 
 ### Extracting variables 
 
-To extract data from the netcdf netCDF, we can use the `ncvar_get()` function, also from the `ncdf4` package. The first argument you should pass to the function is the name of your netCDF file in R (the name you have given the netCDF file you have brought into R using the `nc_open` function) and the second argument is the name of the variable (dimension in this case) we want to extract. The `ncvar_get()` function actually extracts the data as arrays, so we will need to do some formatting to them later on to change the data type. 
+To extract data from the netCDF, we can use the `ncvar_get()` function, also from the `ncdf4` package. The first argument you should pass to the function is the name of your netCDF file in R (the name you have given the netCDF file you have brought into R using the `nc_open` function) and the second argument is the name of the variable (dimension in this case) we want to extract. The `ncvar_get()` function actually extracts the data as arrays, so we will need to do some formatting to them later on to change the data type. 
 
 #### Longitude  
 
@@ -192,11 +192,11 @@ time
 
 ```
 
-So if we look at our time data when we print it out after we have extracted it using, we get a number like `40557`, as you can see above. We know from the information we have that number represnts days since the 1 January 1900. 
+So if we look at our time data when we print it out after we have extracted it using, we get a number like `40557`, as you can see above. We know from the information we have that number represents days since the 1 January 1900. 
 
 This will need to be factored in to convert the formats a little later on, as it will be really useful to use the actual date when we are working with the data.  
 
-To actually turn the units from the time dimension into a variable, we use the ncatt_get() function to extract the units attribute
+To actually turn the units from the time dimension into a variable, we use the `ncatt_get()` function to extract the units attribute
 
 ``` {r time_variable_units, message = FALSE, warning = FALSE}
 
@@ -238,13 +238,13 @@ print(time_cols)
 
 ```
 
-So you can see that the time-stampsfor the particular set of data is The “time-stamp” for this particular data set is the mid-point of the interval for each month of the year for 2011 to 2020. There are other ways in which the “time” associated with a long-term mean is represented in climate stats, but essentially the code above shows us how to change the date format from days since to an actual date - whatever that date ends up representing.
+So you can see that the time-stamps for the particular set of data is The “time-stamp” for this particular data set is the mid-point of the interval for each month of the year for 2011 to 2020. There are other ways in which the “time” associated with a long-term mean is represented in climate stats, but essentially the code above shows us how to change the date format from days since to an actual date - whatever that date ends up representing.
 
-A note on time and formatting - bear in mind there are a number of different ways that time data will be represented and you can turn it into more meaningful date formats in different ways once you understand that date pattern. You do not always have to change the dates in the way it was done above by unlisting and stringspliting, so always be ready to adapt.
+A note on time and formatting - bear in mind there are a number of different ways that time data will be represented and you can turn it into more meaningful date formats in different ways once you understand that date pattern. You do not always have to change the dates in the way it was done above by unlisting and string spliting, so always be ready to adapt.
 
 #### Data variable - temperature
 
-We can extract the data from the array in a very similar way. We know the data variable we are after (temperature) is called `tmp`, so we can use the same `ncvar_get()` function as we have done to extract our three dimnensions of lon, lat and time. 
+We can extract the data from the array in a very similar way. We know the data variable we are after (temperature) is called `tmp`, so we can use the same `ncvar_get()` function as we have done to extract our three dimensions of lon, lat and time. 
 
 ``` {r tmp_variable, message = FALSE, warning = FALSE}
 
@@ -254,9 +254,9 @@ tmp_array <- ncvar_get(nc_data, "tmp")
 
 If we look at all our global environment variables now, we have the longitude, latitude, time, and temperature arrays. You can now get an understanding of the dimensions of each of them and how they will fit in together. The temperature array is a 3D array and matches the dimensions of the lon, lat and time ones, which are 1D arrays. 
 
-So essentially, the dimensions of the array are 720 lons, 360 lats and 120 times (10 years, 12 months for each year.
+So essentially, the dimensions of the array are 720 lons, 360 lats and 120 times (10 years, 12 months for each year).
 
-You can verify this by running dim(tmp_array) and the dims of each variable.
+You can verify this by running `dim(tmp_array)` and the dims of each variable.
 
 The other really useful thing to find out about your temperature data variable at this stage is what potential fill value was used for missing data. This is a common feature of some netcdf files which may be different to standard dataframes in R. You can find the fill value by running the `ncatt_get()` function as below - the name of your data as the first argument, the name of your variable as the second argument and "_FillValue" as the third argument
 
@@ -294,9 +294,9 @@ tmp_vector_long <- as.vector(tmp_array)
 
 ```
 
-To check just how long this vector is, run length(tmp_vector_long) - and you can see that the length is **31104000**.
+To check just how long this vector is, run `length(tmp_vector_long)` - and you can see that the length is **31104000**.
 
-So we know that our data is made up of latitude, longitude, time and temperature variables. We know that we have 120 time values (12 monthls over 10 year) and the number of rows will be the number of longitude values by the number of latitude values, as these are grids.
+So we know that our data is made up of latitude, longitude, time and temperature variables. We know that we have 120 time values (12 months over 10 year) and the number of rows will be the number of longitude values by the number of latitude values, as these are grids.
 
 So we then reshape the vector into a matrix based on this logic and using the nlon, nlat and ntime values we created earlier when evaluating our netcdf dataset.
 
@@ -311,7 +311,7 @@ dim(tmp_matrix)
 
 So in total this should give us a matrix sized 259200 (720 lons x 360 lats) by 120 (time), which adds up to **31104000** from earlier. Bear in mind that we are not just multiplying these two values (720 by 360) to get our number of rows when creating the matrix, as the number of rows will depend on the number of latitude and longitude sized grids, so we use the variables `nlon` and `nlat` we created that are specific to the dimensions of this specific dataset.
 
-Then reshape that vector into a 259200 by 120 matrix using the matrix() function, and verify that those are its dimension.
+Then reshape that vector into a 259200 by 120 matrix using the `matrix()` function, and verify that those are its dimension.
 
 S0 lets see what our matrix actually looks like - lets check it without the NAs, as a lot of the NAs would be for values in the sea, of which there are many.
 
@@ -335,7 +335,7 @@ tmp_dataframe <- data.frame(cbind(lonlat_matrix, tmp_matrix))
 
 Essentially, as you can see the dataset starts in the far corners of the world in a WGS84 system, hence the NAs as there are no values for the ocean in our dataset.
 
-The other thing that you can see is that there are no column names - so we can set these ourselves. We know the first two columns are the longitude and latitude, as when we joined up the lonlat matric with the tmp matrix, we put the lonlat matrix first. Then, the column names for each of the tmp columns are the time columns, so each of the individual layers in the netCDF that we saw visualised when we explored our data using Panoply. This is where our time conversion comes into use, as we can use that to set our column names.
+The other thing that you can see is that there are no column names - so we can set these ourselves. We know the first two columns are the longitude and latitude, as when we joined up the lonlat matrix with the tmp matrix, we put the lonlat matrix first. Then, the column names for each of the tmp columns are the time columns, so each of the individual layers in the netCDF that we saw visualised when we explored our data using Panoply. This is where our time conversion comes into use, as we can use that to set our column names.
 
 ``` {r column_names, message = FALSE, warning = FALSE}
 lon_lat_cols <- c("lon", "lat")
