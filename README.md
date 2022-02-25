@@ -12,6 +12,8 @@ assigned to each cell in that grid representing the value for the area
 of the cell. Gridded climate data also tends to have separate layers,
 one for a different period of time.
 
+![Gridded file example](images/gridded_dataset_example.png)
+
 ## What are netCDF files?
 
 One of the most common file formats used to store gridded climate data,
@@ -35,6 +37,8 @@ there could be one band for each month or year, and each band tends to
 have three dimensions, which tend to be latitude, longitude and the
 value (temperature, rainfall, number of days over X degrees or whatever
 else).
+
+![Visual representation of a netCDF file](images/netcdf_visual.png)
 
 ## How can you work with gridded data?
 
@@ -158,7 +162,7 @@ library(dplyr) #package for data manipulation in R
 library(lubridate) #package  for working with dates in R
 ```
 
-### Reading a gridded file into R (nc\_open from ncd4)
+### Reading a gridded file into R
 
 You can open a netcdf file using the `nc_open()` function from the
 `ncdf4` library.
@@ -390,21 +394,15 @@ So before reshaping the data format to a 2D dataframe format we can work
 with, we will need to convert the time variable.
 
 The time variable in “time-since” units can be converted into actual
-time values by splitting the time tunits$value string into its component
-parts, and then using the `chron()` function to determine the absolute
-value of each time value from the time origin.
+time values by turning the time tunits$value string into a date using
+the lubridate package and adding the number of days onto it. We then
+turn the dates into a character in order to use it as a column header a
+little later on when we reshape our data.
 
 ``` r
-# example of how we can convert time -- split the time units string into fields
-tustr <- strsplit(tunits$value, " ")
-tdstr <- strsplit(unlist(tustr)[3], "-")
-tmonth <- as.integer(unlist(tdstr)[2])
-tday <- as.integer(unlist(tdstr)[3])
-tyear <- as.integer(unlist(tdstr)[1])
+# example of how we can convert time from days since to an actual date
 
-time_cols <- chron(time, origin=c(tmonth, tday, tyear)) %>%
-  lubridate::mdy() %>%
-  as.character()
+time_cols <- as.character(lubridate::ymd(tunits$value) + time)
 ```
 
 So if you look at the time values in days since, this is what you get:
