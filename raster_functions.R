@@ -7,10 +7,10 @@ library(dplyr) #package for data manipulation in R
 library(lubridate) #package  for working with dates in R
 
 
-tmp_monthly <- brick('~/Dropbox (BBC)/Visual Journalism/Data/2022/working_with_climate_data_nicar22/data/cru_ts4.05.2011.2020.tmp.dat.nc', varname = "tmp")
+tmp_monthly <- brick('data/cru_ts4.05.2011.2020.tmp.dat.nc', 
+                     varname = "tmp")
 
 print(tmp_monthly)
-
 
 plot(tmp_monthly)
 
@@ -69,10 +69,12 @@ writeRaster(tmp_avg_diff,
             format = "GTiff",
             overwrite = TRUE)
 
+# converts data into a spatial polygons data frame
 tmp_avg_diff_df <- as(tmp_avg_diff, 
                       "SpatialPolygonsDataFrame")
 
-writeOGR(tmp_avg_diff,
+# saves out data as a geojson
+writeOGR(tmp_avg_diff_df,
          "temperature_annual.geojson",
          layer = "tmp",
          driver = "GeoJSON")

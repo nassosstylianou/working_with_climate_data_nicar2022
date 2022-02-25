@@ -14,6 +14,28 @@ one for a different period of time.
 
 ![Gridded file example](images/gridded_dataset_example.png)
 
+At the BBC News data team, we have used gridded climate data and a lot
+of the techniques below, especially for working with the data and the
+file formats involved to produce news stories and interactive projects
+like these:
+
+-   [How much warmer is your
+    city?](https://www.bbc.co.uk/news/resources/idt-985b9374-596e-4ae6-aa04-7fbcae4cb7ee)
+-   [What will climate change look like in your
+    area?](https://www.bbc.co.uk/news/resources/idt-d6338d9f-8789-4bc2-b6d7-3691c0e7d138)
+-   [World now sees twice as many days over
+    50C](https://www.bbc.co.uk/news/science-environment-58494641)
+
+In this tutorial, we will be going through how the format and structure
+of gridded climate datasets, how to quickly plot such files in bespoke
+software like Panoply and moving onto how to work with and analyse the
+data in R using specialised packages. By the end of the tutorial, you
+should have gained an understanding of the structure of gridded climate
+data in netCDF format and be able to extract and reshape the data. You
+should also be able to run some basic mathematical calculations on the
+data in R, as well as plotting them and exporting them for further
+visualisation in other platforms.
+
 ## What are netCDF files?
 
 One of the most common file formats used to store gridded climate data,
@@ -50,6 +72,19 @@ and multi-dimensional arrays easier. You can also useGIS software like
 they are pretty much raster files. Software like
 [Panoply](https://www.giss.nasa.gov/tools/panoply/), developed by NASA,
 is also a great to get an initial feel of the data and visualise it.
+
+For this tutorial, we will be working with a gridded dataset of average
+(mean) monthly temperatures. The dataset is from [CRU TS (Climatic
+Research Unit gridded Time
+Series)](https://www.nature.com/articles/s41597-020-0453-3) and is on a
+0.5° latitude by 0.5° longitude grid over all land domains of the world
+except Antarctica. It is derived by the interpolation of monthly climate
+anomalies from extensive networks of weather station observations.
+
+The specific [file we will be working with can be downloaded at this
+link](https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.05/cruts.2103051243.v4.05/tmp/cru_ts4.05.2011.2020.tmp.dat.nc.gz),
+while plenty more [CRUTS high resolution gridded dataset can be found at
+this link](https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.05/).
 
 ## Viewing your data in Panoply
 
@@ -157,9 +192,10 @@ library(ncdf4) # package for netcdf manipulation
 library(raster) # package for raster manipulation
 library(RNetCDF) # package for working with netcdfs
 library(rgdal) # package for geospatial analysis
-library(chron) #package to help with time conversions
 library(dplyr) #package for data manipulation in R
 library(lubridate) #package  for working with dates in R
+library(lattice) #package for data visualisation and graphics in R
+library(RColorBrewer) #package  for colour scales in R
 ```
 
 ### Reading a gridded file into R
@@ -176,13 +212,13 @@ saves it as a variable we are calling `nc_data`:
 
 ``` r
 # This loads the data in and saves it to a variable called nc_data
-nc_data <- nc_open('~/Dropbox (BBC)/Visual Journalism/Data/2022/working_with_climate_data_nicar22/data/cru_ts4.05.2011.2020.tmp.dat.nc')
+nc_data <- nc_open('data/cru_ts4.05.2011.2020.tmp.dat.nc')
 
 # To see some basic information about the data, print out the file. 
 print(nc_data)
 ```
 
-    ## File ~/Dropbox (BBC)/Visual Journalism/Data/2022/working_with_climate_data_nicar22/data/cru_ts4.05.2011.2020.tmp.dat.nc (NC_FORMAT_CLASSIC):
+    ## File data/cru_ts4.05.2011.2020.tmp.dat.nc (NC_FORMAT_CLASSIC):
     ## 
     ##      2 variables (excluding dimension variables):
     ##         float tmp[lon,lat,time]   
@@ -249,14 +285,14 @@ before re-shaping it from its list/raster format to a more
 
 ### Extracting variables
 
-To extract data from the netcdf netCDF, we can use the `ncvar_get()`
-function, also from the `ncdf4` package. The first argument you should
-pass to the function is the name of your netCDF file in R (the name you
-have given the netCDF file you have brought into R using the `nc_open`
-function) and the second argument is the name of the variable (dimension
-in this case) we want to extract. The `ncvar_get()` function actually
-extracts the data as arrays, so we will need to do some formatting to
-them later on to change the data type.
+To extract data from the netCDF, we can use the `ncvar_get()` function,
+also from the `ncdf4` package. The first argument you should pass to the
+function is the name of your netCDF file in R (the name you have given
+the netCDF file you have brought into R using the `nc_open` function)
+and the second argument is the name of the variable (dimension in this
+case) we want to extract. The `ncvar_get()` function actually extracts
+the data as arrays, so we will need to do some formatting to them later
+on to change the data type.
 
 #### Longitude
 
@@ -371,7 +407,7 @@ time
 
 So if we look at our time data when we print it out after we have
 extracted it using, we get a number like `40557`, as you can see above.
-We know from the information we have that number represnts days since
+We know from the information we have that number represents days since
 the 1 January 1900.
 
 This will need to be factored in to convert the formats a little later
@@ -379,7 +415,7 @@ on, as it will be really useful to use the actual date when we are
 working with the data.
 
 To actually turn the units from the time dimension into a variable, we
-use the ncatt\_get() function to extract the units attribute
+use the `ncatt_get()` function to extract the units attribute
 
 ``` r
 tunits <- ncatt_get(nc_data,"time","units")
@@ -453,8 +489,8 @@ print(time_cols)
     ## [111] "2020-03-16" "2020-04-16" "2020-05-16" "2020-06-16" "2020-07-16"
     ## [116] "2020-08-16" "2020-09-16" "2020-10-16" "2020-11-16" "2020-12-16"
 
-So you can see that the time-stampsfor the particular set of data is The
-“time-stamp” for this particular data set is the mid-point of the
+So you can see that the time-stamps for the particular set of data is
+The “time-stamp” for this particular data set is the mid-point of the
 interval for each month of the year for 2011 to 2020. There are other
 ways in which the “time” associated with a long-term mean is represented
 in climate stats, but essentially the code above shows us how to change
@@ -465,19 +501,23 @@ A note on time and formatting - bear in mind there are a number of
 different ways that time data will be represented and you can turn it
 into more meaningful date formats in different ways once you understand
 that date pattern. You do not always have to change the dates in the way
-it was done above by unlisting and stringspliting, so always be ready to
-adapt.
+it was done above by unlisting and string spliting, so always be ready
+to adapt.
 
 #### Data variable - temperature
 
 We can extract the data from the array in a very similar way. We know
 the data variable we are after (temperature) is called `tmp`, so we can
 use the same `ncvar_get()` function as we have done to extract our three
-dimnensions of lon, lat and time.
+dimensions of lon, lat and time.
 
 ``` r
 tmp_array <- ncvar_get(nc_data, "tmp")
 ```
+
+When printing out the array, we can see right at the top, we are seeing
+the first element of the array and there are 119 more slices, so we are
+seeing just the first month.
 
 If we look at all our global environment variables now, we have the
 longitude, latitude, time, and temperature arrays. You can now get an
@@ -486,9 +526,9 @@ together. The temperature array is a 3D array and matches the dimensions
 of the lon, lat and time ones, which are 1D arrays.
 
 So essentially, the dimensions of the array are 720 lons, 360 lats and
-120 times (10 years, 12 months for each year.
+120 times (10 years, 12 months for each year).
 
-You can verify this by running dim(tmp\_array) and the dims of each
+You can verify this by running `dim(tmp_array)` and the dims of each
 variable.
 
 The other really useful thing to find out about your temperature data
@@ -500,7 +540,7 @@ the first argument, the name of your variable as the second argument and
 "\_FillValue" as the third argument
 
 ``` r
-# Finds the fill value used for missing data for the precipitation variable
+# Finds the fill value used for missing data for the tmp variable
 fillvalue <- ncatt_get(nc_data, "tmp", "_FillValue")
 fillvalue
 ```
@@ -519,7 +559,7 @@ replace any fill values with ’NA’s, as would be standard practice in R.
 Here’s how:
 
 ``` r
-# Finds the fill value used for missing data for the temperature variable
+# Assigns the fill value used for missing data for the temperature variable to be NA
 tmp_array[tmp_array == fillvalue$value] <- NA
 ```
 
@@ -535,7 +575,7 @@ follow the same format.
 
 So if you remember from earlier, we had turned our data into a really
 large ‘temperature’ array by identifying the variable where the
-precipitation data was held and using the `ncvar_get()` function.
+temperature data was held and using the `ncvar_get()` function.
 
 This is what we had done: `tmp_array <- ncvar_get(nc_data,"tmp")`
 
@@ -544,13 +584,17 @@ vector
 
 ``` r
 tmp_vector_long <- as.vector(tmp_array)
+
+head(na.omit(tmp_vector_long))
 ```
 
-To check just how long this vector is, run length(tmp\_vector\_long) -
+    ## [1] 7.7 7.8 7.8 7.1 7.3 7.2
+
+To check just how long this vector is, run `length(tmp_vector_long)` -
 and you can see that the length is **31104000**.
 
 So we know that our data is made up of latitude, longitude, time and
-temperature variables. We know that we have 120 time values (12 monthls
+temperature variables. We know that we have 120 time values (12 months
 over 10 year) and the number of rows will be the number of longitude
 values by the number of latitude values, as these are grids.
 
@@ -575,8 +619,8 @@ will depend on the number of latitude and longitude sized grids, so we
 use the variables `nlon` and `nlat` we created that are specific to the
 dimensions of this specific dataset.
 
-Then reshape that vector into a 259200 by 120 matrix using the matrix()
-function, and verify that those are its dimension.
+Then reshape that vector into a 259200 by 120 matrix using the
+`matrix()` function, and verify that those are its dimension.
 
 S0 lets see what our matrix actually looks like - lets check it without
 the NAs, as a lot of the NAs would be for values in the sea, of which
@@ -682,7 +726,7 @@ ocean in our dataset.
 
 The other thing that you can see is that there are no column names - so
 we can set these ourselves. We know the first two columns are the
-longitude and latitude, as when we joined up the lonlat matric with the
+longitude and latitude, as when we joined up the lonlat matrix with the
 tmp matrix, we put the lonlat matrix first. Then, the column names for
 each of the tmp columns are the time columns, so each of the individual
 layers in the netCDF that we saw visualised when we explored our data
@@ -698,6 +742,48 @@ tmp_cols <- c(lon_lat_cols,
 colnames(tmp_dataframe) <- tmp_cols
 ```
 
+### Plotting your data
+
+We can have a quick look at our data by slicing up our temperature
+array, picking for example the first one, January 2011.
+
+``` r
+tmp_slice_january2011 <- tmp_array[,,1]
+dim(tmp_slice_january2011)
+```
+
+    ## [1] 720 360
+
+``` r
+# summary(tmp_slice_january2011)
+```
+
+Running the `dim()` funciton on our new array, you can now see it is a
+2D array with 720 longitude values and 360 latitude values - worth
+checking to make sure everything has been done correctly.
+
+We can quickly visualise how the data looks in a map, using the
+`levelplot()` function in the lattice package (you can also visualise in
+a number of other ways, but this is a quick one).
+
+The `expand.grid()` function is used to create a set of 720 by 360 pairs
+of latitude and longitude values, one for each element in the
+temperature array.
+
+``` r
+grid <- expand.grid(lon = lon, lat = lat)
+
+ # Sets breakpoints for the map we want to use below -specific values of the cutpoints of temperature categories are defined to cover the range of temperature - you can obviously tweak these and adjust to your data. 
+cutpts <- c(-50, -25, -10, -5, 0, 5, 10, 25, 50)
+
+# Visualises data in a map using the levelplot() function from the lattice package - using the grid above and the breakpoints we set above 
+lattice::levelplot(tmp_slice_january2011 ~ lon * lat,
+            data = grid, at = cutpts, cuts = 11, pretty = T, 
+            col.regions = rev(brewer.pal(9, "RdYlBu")))
+```
+
+![](tutorial_files/figure-gfm/time_slices_plot-1.png)<!-- -->
+
 ### Calculations with the raster package
 
 We can also work with our dataset using functions from the `raster`
@@ -710,12 +796,12 @@ as we have seen earlier, has two variables, we can explicitly select the
 message with the variable the function has chosen.
 
 ``` r
-tmp_monthly <- brick('~/Dropbox (BBC)/Visual Journalism/Data/2022/working_with_climate_data_nicar22/data/cru_ts4.05.2011.2020.tmp.dat.nc', varname = "tmp")
+tmp_monthly <- brick('data/cru_ts4.05.2011.2020.tmp.dat.nc', varname = "tmp")
 
 print(tmp_monthly)
 ```
 
-    ## File /Users/stylin02/Dropbox (BBC)/Visual Journalism/Data/2022/working_with_climate_data_nicar22/data/cru_ts4.05.2011.2020.tmp.dat.nc (NC_FORMAT_CLASSIC):
+    ## File /Users/stylin02/bbc/nicar2022/working_with_climate_data_nicar2022/data/cru_ts4.05.2011.2020.tmp.dat.nc (NC_FORMAT_CLASSIC):
     ## 
     ##      2 variables (excluding dimension variables):
     ##         float tmp[lon,lat,time]   
